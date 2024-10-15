@@ -1,6 +1,11 @@
 #!/bin/bash
 
-# Script para instalación de migasfree server y client
+#############################################################
+#                                                           #
+#   Script para instalación de migasfree server y client    #
+#                                                           #
+#############################################################
+
 
 # Colores 
 
@@ -10,7 +15,7 @@ naranja='\033[0;33m'
 amarillo='\033[1;33m'
 azul='\033[0;34m'
 magenta='\033[0;35m'
-cyan='\033[0;36m'
+cian='\033[0;36m'
 negro='\033[0;30m'
 gris_claro='\033[0;37m'
 blanco='\033[1;37m'
@@ -33,21 +38,45 @@ logo='
                    "Y88P"                                                   
 '
 
-# Mostrar el logo
 
-
-# Ctrl + C
+# Salir con Ctrl + C
 
 function ctrlc(){
 
-    echo -e "\n${rojo}Saliendo..."
+    echo -e "\n\n${rojo}Saliendo..."
     sleep 1
+    #clear
     exit 1
-    clear
 }
 
 trap ctrlc SIGINT
 
+# Barra de progreso
+
+function barra_prog(){
+
+    pasos_totales=10
+
+    long_barra=20
+    caracter='#'
+    barra=''
+
+    echo -e "\n${azul}Instalando...${reset}"
+
+    for ((i=0; i<pasos_totales; i++)); do
+        porcentaje=$((i*100/pasos_totales))
+
+        barra=$(printf %${long_barra}s | tr ' ' "${caracter}")
+        echo -ne "\r[${barra}] ${porcentaje}%\r"
+
+        sleep 0.5
+    done
+    echo ""
+    echo -ne "\nInstalación completa"
+
+    echo -ne "\n\n"
+
+}
 
 # Comprobación de paquetes
 
@@ -57,10 +86,22 @@ function comprobar_packets() {
     instld="${verde}Instalado${reset}"
     no_inst="${rojo}No instalado${reset}"
 
-    if dpkg -s haveged && docker --version && docker-compose --version &>/dev/null; then
-        estado=$instld
+    if dpkg -s haveged &>/dev/null; then
+        haveged=$instld
     else
-        estado=$no_inst
+        haveged=$no_inst
+    fi
+
+    if docker --version &>/dev/null; then
+        docker=$instld
+    else
+        docker=$no_inst
+    fi
+
+    if docker-compose --version &>/dev/null; then
+        compose=$instld
+    else
+        compose=$no_inst
     fi
 
     echo -e "Comprobando paquetes necesarios...\n"
@@ -68,25 +109,24 @@ function comprobar_packets() {
     echo -e "Paquetes necesarios para Migasfree server"
     echo -e "-----------------------------------------"
     sleep 1
-    echo -e "Haveged: $estado"
+    echo -e "Haveged: $haveged"
     sleep 1
-    echo -e "Docker: $estado"
+    echo -e "Docker: $docker"
     sleep 1
-    echo -e "Docker-compose: $estado"
+    echo -e "Docker-compose: $compose"
 
     sleep 2
     echo -e "\nPaquetes necesarios para Migasfree client"
     echo -e "-----------------------------------------"
-    echo -e "Haveged: $estado"
+    echo -e "Haveged: $haveged"
     sleep 1
-    echo -e "Docker: $estado"
+    echo -e "Docker: $docker"
     sleep 1
-    echo -e "Docker-compose: $estado"
+    echo -e "Docker-compose: $compose"
     echo -e "\n"
     read -p "Pulsa enter para volver al menú" x
 
 }
-
 
 # Instalación migasfree server
 
@@ -94,36 +134,65 @@ function instalar_server() {
 
     clear
 
+    necesario=()
+
     # Chequeo e instalación haveged
 
+    echo -e "\nInstalación de Migasfree server"
+    echo -e "${cian}---------------------------------------${reset}"
+    echo -e "\nComprobación de paquetes necesarios:\n"
+    sleep 1
+
     if dpkg -s haveged &>/dev/null; then
-        echo "${verde}Haveged está instalado${reset}"
+        echo "\n${verde}Haveged está instalado${reset}"
+        necesario+=("haveged")
+        sleep 1
     else
-        read -p "El paquete haveged no está instalado y su instalación es necesaria, ¿Quieres instalarlo (s/n)?: " op
+        read -p "El paquete haveged no está instalado y es necesario, ¿Quieres instalarlo (s/n)?: " op
         if [[ "$op" == "s" ]]; then
-            echo -e "${azul}Instalando haveged...\n${reset}"
+            barra_prog
+            necesario+=("haveged")
+
+        elif [[ ! ($op == "s" || $op == "S" || $op == "n" || $op == "N") ]]; then
+            echo $'\n\e[31mElige una opción válida, pulsa enter\e[0m'
+            read -p ""
+            instalar_server
+        
         else
-            echo -e "${rojo}Saliendo...${reset}"
+            true
+            : '
+            echo -e "\n${rojo}Saliendo...${reset}"
+            sleep 1
             mostrar_menu
+            '
         fi
             
-    # echo "sudo apt-get install haveged"
         sleep 1
     fi
 
     # Chequeo e instalación docker
 
     if docker --version &>/dev/null; then
-        echo -e "${verde}Docker está instalado\n${reset}"
+        echo -e "\n${verde}Docker está instalado\n${reset}"
+        necesario+=("docker")
+        sleep 1
     else
-        read -p "El paquete docker no está instalado y su instalación es necesaria, ¿Quieres instalarlo (s/n)?: " op
+        read -p "El paquete docker no está instalado y es necesario, ¿Quieres instalarlo (s/n)?: " op
         if [[ "$op" == "s" ]]; then
-            # echo apt-get install docker
-            echo -e "${azul}Instalando docker...\n${reset}"
+            barra_prog
+            necesario+=("docker")
+
+        elif [[ ! ($op == "s" || $op == "S" || $op == "n" || $op == "N") ]]; then
+            echo "${rojo}Opción no válida, elige si o no"
+            read -p $'\n\e[31mElige una opción válida, pulsa enter\e[0m'
+            instalar_server
         else
-            echo -e "${rojo}Saliendo...${reset}"
+            true
+            : '
+            echo -e "\n${rojo}Saliendo...${reset}"
             sleep 1
             mostrar_menu
+            '
         fi
         sleep 1
     fi
@@ -132,17 +201,55 @@ function instalar_server() {
 
     if dpkg -s docker-compose &>/dev/null; then
         echo -e "${verde}Docker está instalado\n"
+        necesario+=("docker-compose")
     else
         read -p "El paquete docker-compose no está instalado y su instalación es necesaria, ¿Quieres instalarlo (s/n)?: " op
         if [[ "$op" == "s" ]]; then
-            # echo apt-get install docker-compose
-            echo -e "${azul}Instalando docker-compose...\n${reset}"
+            barra_prog
+            necesario+=("docker-compose")
+
+        elif [[ ! ($op == "s" || $op == "S" || $op == "n" || $op == "N") ]]; then
+            echo $'\n\e[31mElige una opción válida, pulsa enter\e[0m'
+            read -p ""
+            instalar_server
+
         else
-            echo -e "${rojo}Saliendo...${reset}"
+            true
+            : '
+            echo -e "\n${rojo}Saliendo...${reset}"
+            sleep 1
+            mostrar_menu
+            '
+        fi
+        sleep 1
+    fi
+
+    paquetes=${#necesario[@]}
+
+    if [[ $paquetes == 3 ]]; then
+        read -p "Todo listo para instalar Migasfree server, deseas instalarlo? (s/n)"
+        
+        sleep 1
+        if [[ "$op" == "s" ]]; then
+            echo -e "\nProcediendo a instalar y lanzar Migasfree server..."
+            barra_prog
+            read -p "Pulsa enter para volver al menú..."
+
+        elif [[ ! ($op == "s" || $op == "S" || $op == "n" || $op == "N") ]]; then
+            echo $'\n\e[31mElige una opción válida, pulsa enter\e[0m'
+            read -p ""
+            mostrar_menu
+
+        else
+            true
+            echo -e "\n${rojo}Saliendo...${reset}"
             sleep 1
             mostrar_menu
         fi
         sleep 1
+        
+    else
+        read -p "Paquetes insuficientes, pulsa enter para volver al menú..."
     fi
 }
 
@@ -150,46 +257,64 @@ function instalar_server() {
 # function instalar_client() {}
 
 
+
 # Función menú
 
 function mostrar_menu() {
-menu="${azul}-----Menu----${reset}\n\n1. Comprobar paquetes\n2. Instalar Migasfree server\n3. Instalar Migasfree client\n4. Salir${reset}"
+    menu="${azul}------- Menu ------${reset}\n\n1. Comprobar paquetes\n2. Instalar Migasfree server\n3. Instalar Migasfree client\n4. Salir${reset}\n"
 
-while [[ $op != 4 ]]; do
-    clear
-    echo -e "${naranja}$logo"
-    echo -e $menu 
-    read -p "${cyan}Elige una opción: ${reset}" op
+    while [[ $op != 4 ]]; do
 
-    case $op in
+        clear
+        echo -e "${naranja}$logo"
+        echo -e $menu 
+        read -p $'\e[36mElige una opción\e[0m: ' op # Mostra entrada en cian
 
-        1)
-            echo -e "${verde}Preparando comprobación de paquetes...${reset}"
-            sleep 1
-            comprobar_packets
-            ;;
-        2)
-            echo -e "${azul}Preparando instalación de migasfree server...${reset}"
-            sleep 2
-            instalar_server
-            ;;
+        case $op in
 
-        3)
-            echo -e "${azul}Preparando instalación de migasfree client...${reset}"
-            sleep 2
-            ;;
-        4)
-            echo -e "${rojo}Saliendo..."
-            sleep 1
-            ;;
-        *)
-            echo -e "${rojo}Opción no válida${reset}"
-            sleep 1
-            ;;
-    esac
+            1)
+                echo -e "\n${verde}Preparando comprobación de paquetes...${reset}"
+                sleep 1
+                comprobar_packets
+                ;;
+            2)
+                echo -e "\n${azul}Preparando instalación de migasfree server...${reset}"
+                sleep 1
+                instalar_server
+                ;;
 
-done
+            3)
+                echo -e "\n${azul}Preparando instalación de migasfree client...${reset}"
+                sleep 1
+                ;;
+            4)
+                echo -e "\n${rojo}Saliendo..."
+                sleep 1
+                exit 1
+                ;;
+            *)
+                echo -e "\n${rojo}Opción no válida${reset}"
+                mostrar_menu
+                sleep 1
+                ;;
+        esac
+
+    done
 
 }
 
+# Lanzar menú
+
 mostrar_menu
+
+
+
+#-------------------------------------------------------------------------
+
+# Referencias
+
+# Colores: https://www.shellhacks.com/bash-colors/
+
+# Barra de progreso: https://www.golinuxcloud.com/create-bash-progress-bar/
+
+# Logo: https://www.asciiart.eu/text-to-ascii-art
